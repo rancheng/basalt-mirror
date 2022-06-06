@@ -298,6 +298,7 @@ target_sources(basalt
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/calibration/cam_imu_calib.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/calibration/vignette.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/device/rs_t265.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/device/rs_l515.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/hash_bow/hash_bow.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/io/dataset_io.h
     ${CMAKE_CURRENT_SOURCE_DIR}/include/basalt/io/dataset_io_euroc.h
@@ -422,11 +423,19 @@ target_link_libraries(basalt_kitti_eval basalt::basalt-headers basalt::cli11)
 
 find_package(realsense2 QUIET)
 if(realsense2_FOUND)
+  # T265
   add_executable(basalt_rs_t265_record src/rs_t265_record.cpp src/device/rs_t265.cpp)
   target_link_libraries(basalt_rs_t265_record basalt realsense2::realsense2 pangolin basalt::cli11)
 
   add_executable(basalt_rs_t265_vio src/rs_t265_vio.cpp src/device/rs_t265.cpp)
   target_link_libraries(basalt_rs_t265_vio basalt realsense2::realsense2 pangolin basalt::cli11)
+  # L515
+  add_executable(basalt_rs_l515_record src/rs_l515_record.cpp src/device/rs_l515.cpp)
+  target_link_libraries(basalt_rs_l515_record basalt realsense2::realsense2 pangolin basalt::cli11)
+
+  add_executable(basalt_rs_l515_vio src/rs_l515_vio.cpp src/device/rs_l515.cpp)
+  target_link_libraries(basalt_rs_l515_vio basalt realsense2::realsense2 pangolin basalt::cli11)
+  # D455
 endif()
 
 
@@ -451,6 +460,11 @@ if(realsense2_FOUND)
       RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
       LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
       ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
+    install(TARGETS basalt_rs_l515_record basalt_rs_l515_vio
+            EXPORT BasaltTargets
+            RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+            LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}/lib
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_PREFIX}/lib)
 endif()
 
 file(GLOB SCRIPTS_TO_INSTALL "${CMAKE_CURRENT_SOURCE_DIR}/scripts/basalt_*.py")
