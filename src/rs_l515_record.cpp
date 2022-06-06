@@ -469,9 +469,9 @@ int main(int argc, char *argv[]) {
                   L515_device->last_img_data->img_data[cam_id].img->w,
                   L515_device->last_img_data->img_data[cam_id].img->h,
                   L515_device->last_img_data->img_data[cam_id].img->pitch, fmt);
-              std::cout << "img w: " << L515_device->last_img_data->img_data[0].img->w <<  std::endl;
-              std::cout << "img h: " << L515_device->last_img_data->img_data[0].img->h <<  std::endl;
-              std::cout << "img pitch: " << L515_device->last_img_data->img_data[0].img->pitch <<  std::endl;
+//              std::cout << "img w: " << L515_device->last_img_data->img_data[0].img->w <<  std::endl;
+//              std::cout << "img h: " << L515_device->last_img_data->img_data[0].img->h <<  std::endl;
+//              std::cout << "img pitch: " << L515_device->last_img_data->img_data[0].img->pitch <<  std::endl;
             }
           }
       }

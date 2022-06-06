@@ -150,7 +150,7 @@ void RsL515Device::start() {
       }
     } else if (auto fs = frame.as<rs2::frameset>()) {
       BASALT_ASSERT(fs.size() == NUM_CAMS);
-      std::cout << "fame set size: " << fs.size() << std::endl;
+      std::cout << "frame set size: " << fs.size() << std::endl;
       std::vector<rs2::video_frame> vfs;
       for (int i = 0; i < NUM_CAMS; ++i) {
         rs2::video_frame vf = fs[i].as<rs2::video_frame>();
@@ -175,7 +175,7 @@ void RsL515Device::start() {
       if (frame_counter++ % skip_frames != 0) {
         return;
       }
-
+      std::cout << "frame count: " << frame_counter << std::endl;
       OpticalFlowInput::Ptr data(new OpticalFlowInput);
       data->img_data.resize(NUM_CAMS);
 
@@ -196,15 +196,12 @@ void RsL515Device::start() {
 
         data->img_data[i].img.reset(new basalt::ManagedImage<uint16_t>(
             vf.get_width(), vf.get_height()));
-
-        const uint8_t* data_in = (const uint8_t*)vf.get_data();
+        const uint16_t* data_in = (const uint16_t*)vf.get_data();
         uint16_t* data_out = data->img_data[i].img->ptr;
-
+//        data_out = data_in;
         size_t full_size = vf.get_width() * vf.get_height();
         for (size_t j = 0; j < full_size; j++) {
-          int val = data_in[j];
-          val = val << 8;
-          data_out[j] = val;
+          data_out[j] = data_in[j];
         }
 
         //        std::cout << "Timestamp / exposure " << i << ": " <<
