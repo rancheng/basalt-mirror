@@ -70,8 +70,7 @@ pangolin::Var<int> webp_quality("ui.webp_quality", 90, 0, 101);
 pangolin::Var<int> skip_frames("ui.skip_frames", 1, 1, 10);
 pangolin::Var<float> exposure("ui.exposure", 5.0, 1, 20);
 
-tbb::concurrent_bounded_queue<basalt::OpticalFlowInput::Ptr> image_data_queue,
-    image_data_queue2;
+tbb::concurrent_bounded_queue<basalt::OpticalFlowInput::Ptr> image_data_queue;
 tbb::concurrent_bounded_queue<basalt::ImuData<double>::Ptr> imu_data_queue;
 tbb::concurrent_bounded_queue<basalt::RsPoseData> pose_data_queue;
 
@@ -102,6 +101,7 @@ void exposure_save_worker() {
   basalt::OpticalFlowInput::Ptr img;
   while (!stop_workers) {
     if (image_data_queue.try_pop(img)) {
+      std::cout << "image_data_queue size: " << image_data_queue.size() << std::endl;
       for (size_t cam_id = 0; cam_id < NUM_CAMS; ++cam_id) {
         cam_data[cam_id] << img->t_ns << "," << img->t_ns << file_extension
                          << std::endl;
@@ -110,8 +110,6 @@ void exposure_save_worker() {
                               << int64_t(img->img_data[cam_id].exposure * 1e9)
                               << std::endl;
       }
-
-      image_data_queue2.push(img);
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -122,7 +120,7 @@ void image_save_worker() {
   basalt::OpticalFlowInput::Ptr img;
 
   while (!stop_workers) {
-    if (image_data_queue2.try_pop(img)) {
+    if (image_data_queue.try_pop(img)) {
       for (size_t cam_id = 0; cam_id < NUM_CAMS; ++cam_id) {
         basalt::ManagedImage<uint16_t>::Ptr image_raw =
             img->img_data[cam_id].img;
@@ -259,9 +257,9 @@ void startRecording(const std::string &dir_path) {
     }
 
     cam_data[0] << "#timestamp [ns], filename\n";
-    cam_data[1] << "#timestamp [ns], filename\n";
+    //cam_data[1] << "#timestamp [ns], filename\n";
     exposure_data[0] << "#timestamp [ns], exposure time[ns]\n";
-    exposure_data[1] << "#timestamp [ns], exposure time[ns]\n";
+    //exposure_data[1] << "#timestamp [ns], exposure time[ns]\n";
     imu0_data << "#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad "
                  "s^-1],w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y "
                  "[m s^-2],a_RS_S_z [m s^-2]\n";
@@ -286,7 +284,7 @@ void stopRecording() {
       L515_device->pose_data_queue = nullptr;
       L515_device->image_data_queue = nullptr;
 
-      while (!image_data_queue.empty() || !image_data_queue2.empty() ||
+      while (!image_data_queue.empty() ||
              !imu_data_queue.empty() || !pose_data_queue.empty()) {
         std::cout << "Waiting until the data from the queues is written to the "
                      "hard drive."
@@ -296,12 +294,13 @@ void stopRecording() {
 
       recording = false;
       cam_data[0].close();
-      cam_data[1].close();
+      //cam_data[1].close();
       exposure_data[0].close();
-      exposure_data[1].close();
+      //exposure_data[1].close();
       imu0_data.close();
-      pose_data.close();
-
+      if (!manual_exposure) {
+        pose_data.close();
+      }
       std::cout << "Stopped recording dataset in " << dataset_dir << std::endl;
     };
 
@@ -350,7 +349,6 @@ int main(int argc, char *argv[]) {
   pose_worker_thread = std::thread(pose_save_worker);
 
   image_data_queue.set_capacity(1000);
-  image_data_queue2.set_capacity(1000);
   imu_data_queue.set_capacity(10000);
   pose_data_queue.set_capacity(10000);
 
@@ -406,7 +404,7 @@ int main(int argc, char *argv[]) {
 
         if (idx == 0) {
           pangolin::GlFont::I()
-              .Text("Queue: %d.", image_data_queue2.size())
+              .Text("Queue: %d.", image_data_queue.size())
               .Draw(30, 60);
         }
 
@@ -465,12 +463,16 @@ int main(int argc, char *argv[]) {
         if (L515_device->last_img_data.get())
           for (size_t cam_id = 0; cam_id < basalt::RsL515Device::NUM_CAMS;
                cam_id++) {
-            if (L515_device->last_img_data->img_data[cam_id].img.get())
+            if (L515_device->last_img_data->img_data[cam_id].img.get()){
               img_view[cam_id]->SetImage(
                   L515_device->last_img_data->img_data[cam_id].img->ptr,
                   L515_device->last_img_data->img_data[cam_id].img->w,
                   L515_device->last_img_data->img_data[cam_id].img->h,
                   L515_device->last_img_data->img_data[cam_id].img->pitch, fmt);
+              std::cout << "img w: " << L515_device->last_img_data->img_data[0].img->w <<  std::endl;
+              std::cout << "img h: " << L515_device->last_img_data->img_data[0].img->h <<  std::endl;
+              std::cout << "img pitch: " << L515_device->last_img_data->img_data[0].img->pitch <<  std::endl;
+            }
           }
       }
 

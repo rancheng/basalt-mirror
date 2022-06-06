@@ -49,7 +49,8 @@ RsL515Device::RsL515Device(bool manual_exposure, int skip_frames,
 
   config.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
   config.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-  config.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_RGB8);
+  config.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_Y16);
+//  config.enable_stream(RS2_STREAM_INFRARED, 640, 480, RS2_FORMAT_Y8);
 
   if (context.query_devices().size() == 0) {
     std::cout << "Waiting for device to be connected" << std::endl;
@@ -77,8 +78,8 @@ RsL515Device::RsL515Device(bool manual_exposure, int skip_frames,
   if (manual_exposure) {
     std::cout << "Enabling manual exposure control" << std::endl;
     if(sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)){
-      sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
-      sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
+//      sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
+//      sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
     }
     else{
       std::cout << "Auto Exposure not supported!" << std::endl;
@@ -149,7 +150,7 @@ void RsL515Device::start() {
       }
     } else if (auto fs = frame.as<rs2::frameset>()) {
       BASALT_ASSERT(fs.size() == NUM_CAMS);
-
+      std::cout << "fame set size: " << fs.size() << std::endl;
       std::vector<rs2::video_frame> vfs;
       for (int i = 0; i < NUM_CAMS; ++i) {
         rs2::video_frame vf = fs[i].as<rs2::video_frame>();
@@ -261,8 +262,7 @@ std::shared_ptr<basalt::Calibration<double>> RsL515Device::exportCalibration() {
 
   auto accel_stream = profile.get_stream(RS2_STREAM_ACCEL);
   auto gyro_stream = profile.get_stream(RS2_STREAM_GYRO);
-  auto cam0_stream = profile.get_stream(RS2_STREAM_FISHEYE, 1);
-  auto cam1_stream = profile.get_stream(RS2_STREAM_FISHEYE, 2);
+  auto cam0_stream = profile.get_stream(RS2_STREAM_COLOR);
 
   // get gyro extrinsics
   if (auto gyro = gyro_stream.as<rs2::motion_stream_profile>()) {
@@ -329,7 +329,7 @@ std::shared_ptr<basalt::Calibration<double>> RsL515Device::exportCalibration() {
   }
 
   // get camera ex-/intrinsics
-  for (const auto& cam_stream : {cam0_stream, cam1_stream}) {
+  for (const auto& cam_stream : {cam0_stream}) {
     if (auto cam = cam_stream.as<rs2::video_stream_profile>()) {
       // extrinsics
       rs2_extrinsics ex = cam.get_extrinsics_to(gyro_stream);
