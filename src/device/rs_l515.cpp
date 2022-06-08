@@ -68,7 +68,7 @@ RsL515Device::RsL515Device(bool manual_exposure, int skip_frames,
   }
 
   auto device = context.query_devices()[0];
-  device.hardware_reset();
+  // device.hardware_reset();
 
   std::cout << "Device " << device.get_info(RS2_CAMERA_INFO_NAME)
             << " connected" << std::endl;
