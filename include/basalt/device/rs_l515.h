@@ -86,7 +86,10 @@ class RsL515Device {
   bool setExposure(double exposure);  // in milliseconds
   void setSkipFrames(int skip);
   void setWebpQuality(int quality);
-
+  rs2_stream find_stream_to_align(
+      const std::vector<rs2::stream_profile>& streams);
+  bool profile_changed(const std::vector<rs2::stream_profile>& current,
+                       const std::vector<rs2::stream_profile>& prev);
   std::shared_ptr<basalt::Calibration<double>> exportCalibration();
 
   OpticalFlowInput::Ptr last_img_data;
@@ -99,7 +102,7 @@ class RsL515Device {
   bool manual_exposure;
   int skip_frames;
   int webp_quality;
-
+  double timestamp_image = -1.0;
   int frame_counter = 0;
 
   Eigen::aligned_deque<RsIMUData> gyro_data_queue;
@@ -111,6 +114,9 @@ class RsL515Device {
   rs2::config config;
   rs2::pipeline pipe;
   rs2::sensor sensor;
+
+  rs2_stream align_to;
+  rs2::align* align;
 
   rs2::pipeline_profile profile;
 };

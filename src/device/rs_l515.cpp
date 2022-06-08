@@ -49,8 +49,8 @@ RsL515Device::RsL515Device(bool manual_exposure, int skip_frames,
 
   config.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
   config.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-  config.enable_stream(RS2_STREAM_COLOR, 1280, 720, RS2_FORMAT_Y16);
-//  config.enable_stream(RS2_STREAM_INFRARED, 640, 480, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_COLOR, 640, 360, RS2_FORMAT_Y16);
+//  config.enable_stream(RS2_STREAM_DEPTH, 640, 480, RS2_FORMAT_Z16);
 
   if (context.query_devices().size() == 0) {
     std::cout << "Waiting for device to be connected" << std::endl;
@@ -77,14 +77,18 @@ RsL515Device::RsL515Device(bool manual_exposure, int skip_frames,
 
   if (manual_exposure) {
     std::cout << "Enabling manual exposure control" << std::endl;
-    if(sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)){
-//      sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
-//      sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
-    }
-    else{
+    if (sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
+      sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
+      sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
+    } else {
       std::cout << "Auto Exposure not supported!" << std::endl;
     }
   }
+//  profile = pipe.start(config);
+//  pipe.stop();
+//  align_to =
+//      RsL515Device::find_stream_to_align(profile.get_streams());
+//  align = new rs2::align(align_to);
 }
 
 void RsL515Device::start() {
@@ -148,27 +152,30 @@ void RsL515Device::start() {
           prev_accel_data.reset(new RsIMUData(d));
         }
       }
-    } else if (auto fs = frame.as<rs2::frameset>()) {
-      BASALT_ASSERT(fs.size() == NUM_CAMS);
+    } else if (auto fs = frame.as<rs2::frameset>()) { // always get error after first frame obtained
+      // (sensor.cpp:572) acquire_power failed: map_device_descriptor Cannot open '/dev/video0 Last Error: No such device
+      // (global_timestamp_reader.cpp:239) Error during time_diff_keeper polling: map_device_descriptor Cannot open '/dev/video0 Last Error: No such device
+      double new_timestamp_image = fs.get_timestamp()*1e-3;
+      if(abs(timestamp_image-new_timestamp_image)<0.001){
+        frame_counter--;
+        return;
+      }
+//      if (profile_changed(pipe.get_active_profile().get_streams(), profile.get_streams()))
+//      {
+//        //If the profile was changed, update the align object, and also get the new device's depth scale
+//        profile = pipe.get_active_profile();
+//        align_to = find_stream_to_align(profile.get_streams());
+//        align = new rs2::align(align_to);
+//      }
       std::cout << "frame set size: " << fs.size() << std::endl;
       std::vector<rs2::video_frame> vfs;
-      for (int i = 0; i < NUM_CAMS; ++i) {
+      for (int i = 0; i < NUM_CAMS; i++) {
         rs2::video_frame vf = fs[i].as<rs2::video_frame>();
         if (!vf) {
           std::cout << "Weird Frame, skipping" << std::endl;
           return;
         }
         vfs.push_back(vf);
-      }
-
-      // Callback is called for every new image, so in every other call, the
-      // left frame is updated but the right frame is still from the previous
-      // timestamp. So we only process framesets where both images are valid and
-      // have the same timestamp.
-      for (int i = 1; i < NUM_CAMS; ++i) {
-        if (vfs[0].get_timestamp() != vfs[i].get_timestamp()) {
-          return;
-        }
       }
 
       // skip frames if configured
@@ -179,15 +186,10 @@ void RsL515Device::start() {
       OpticalFlowInput::Ptr data(new OpticalFlowInput);
       data->img_data.resize(NUM_CAMS);
 
-      //      std::cout << "Reading frame " << frame_counter << std::endl;
-
       for (int i = 0; i < NUM_CAMS; i++) {
         const auto& vf = vfs[i];
 
         int64_t t_ns = vf.get_timestamp() * 1e6;
-
-        // at this stage both image timestamps are expected to be equal
-        BASALT_ASSERT(i == 0 || t_ns == data->t_ns);
 
         data->t_ns = t_ns;
 
@@ -198,21 +200,30 @@ void RsL515Device::start() {
             vf.get_width(), vf.get_height()));
         const uint16_t* data_in = (const uint16_t*)vf.get_data();
         uint16_t* data_out = data->img_data[i].img->ptr;
-//        data_out = data_in;
         size_t full_size = vf.get_width() * vf.get_height();
         for (size_t j = 0; j < full_size; j++) {
           data_out[j] = data_in[j];
         }
+        /*
+        data->img_data[i].img.reset(new basalt::ManagedImage<uint16_t>(
+            vf.get_width(), vf.get_height()));
+        const uint8_t* data_in = (const uint8_t*)vf.get_data();
+        uint16_t* data_out = data->img_data[i].img->ptr;
 
-        //        std::cout << "Timestamp / exposure " << i << ": " <<
-        //        data->t_ns << " / "
-        //                  << int(data->img_data[i].exposure * 1e3) << "ms" <<
-        //                  std::endl;
+        size_t full_size = vf.get_width() * vf.get_height();
+        for (size_t j = 0; j < full_size; j++) {
+          int val = data_in[j];
+          val = val << 8;
+          data_out[j] = val;
+        } */
+
+        std::cout << "Timestamp / exposure " << i << ": " << data->t_ns << " / "
+                  << int(data->img_data[i].exposure * 1e3) << "ms" << std::endl;
       }
 
       last_img_data = data;
       if (image_data_queue) image_data_queue->push(data);
-
+      std::cout << "done img data reading ..." << std::endl;
     } else if (auto pf = frame.as<rs2::pose_frame>()) {
       auto data = pf.get_pose_data();
 
@@ -243,6 +254,56 @@ bool RsL515Device::setExposure(double exposure) {
 
   sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure * 1000);
   return true;
+}
+
+bool RsL515Device::profile_changed(
+    const std::vector<rs2::stream_profile>& current,
+    const std::vector<rs2::stream_profile>& prev) {
+  for (auto&& sp : prev) {
+    // If previous profile is in current (maybe just added another)
+    auto itr = std::find_if(std::begin(current), std::end(current),
+                            [&sp](const rs2::stream_profile& current_sp) {
+                              return sp.unique_id() == current_sp.unique_id();
+                            });
+    if (itr ==
+        std::end(current))  // If it previous stream wasn't found in current
+    {
+      return true;
+    }
+  }
+  return false;
+}
+
+rs2_stream RsL515Device::find_stream_to_align(
+    const std::vector<rs2::stream_profile>& streams) {
+  // Given a vector of streams, we try to find a depth stream and another stream
+  // to align depth with. We prioritize color streams to make the view look
+  // better. If color is not available, we take another stream that (other than
+  // depth)
+  align_to = RS2_STREAM_ANY;
+  bool depth_stream_found = false;
+  bool color_stream_found = false;
+  for (rs2::stream_profile sp : streams) {
+    rs2_stream profile_stream = sp.stream_type();
+    if (profile_stream != RS2_STREAM_DEPTH) {
+      if (!color_stream_found)  // Prefer color
+        align_to = profile_stream;
+
+      if (profile_stream == RS2_STREAM_COLOR) {
+        color_stream_found = true;
+      }
+    } else {
+      depth_stream_found = true;
+    }
+  }
+
+  if (!depth_stream_found)
+    throw std::runtime_error("No Depth stream available");
+
+  if (align_to == RS2_STREAM_ANY)
+    throw std::runtime_error("No stream found to align with Depth");
+
+  return align_to;
 }
 
 void RsL515Device::setSkipFrames(int skip) { skip_frames = skip; }
@@ -363,7 +424,7 @@ std::shared_ptr<basalt::Calibration<double>> RsL515Device::exportCalibration() {
       std::abort();
     }
   }
-
+  std::cout << "got calib" << std::endl;
   return calib;
 }
 
