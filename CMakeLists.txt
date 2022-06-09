@@ -436,6 +436,17 @@ if(realsense2_FOUND)
   add_executable(basalt_rs_l515_vio src/rs_l515_vio.cpp src/device/rs_l515.cpp)
   target_link_libraries(basalt_rs_l515_vio basalt realsense2::realsense2 pangolin basalt::cli11)
   # D455
+  add_executable(basalt_rs_d455_record src/rs_d455_record.cpp src/device/rs_d455.cpp)
+  target_link_libraries(basalt_rs_d455_record basalt realsense2::realsense2 pangolin basalt::cli11)
+
+  add_executable(basalt_rs_d455_vio src/rs_d455_vio.cpp src/device/rs_d455.cpp)
+  target_link_libraries(basalt_rs_d455_vio basalt realsense2::realsense2 pangolin basalt::cli11)
+  # D435i
+  add_executable(basalt_rs_d435i_record src/rs_d435i_record.cpp src/device/rs_d435i.cpp)
+  target_link_libraries(basalt_rs_d435i_record basalt realsense2::realsense2 pangolin basalt::cli11)
+
+  add_executable(basalt_rs_d435i_vio src/rs_d435i_vio.cpp src/device/rs_d435i.cpp)
+  target_link_libraries(basalt_rs_d435i_vio basalt realsense2::realsense2 pangolin basalt::cli11)
 endif()
 
 
