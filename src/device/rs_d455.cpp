@@ -118,7 +118,7 @@ void RsD455Device::start() {
           while (!gyro_data_queue.empty() && gyro_data_queue.front().timestamp <
                                                  prev_accel_data->timestamp) {
             std::cout << "Skipping gyro data. Timestamp before the first accel "
-                         "measurement.";
+                         "measurement." << std::endl;
             gyro_data_queue.pop_front();
           }
 
