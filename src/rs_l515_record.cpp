@@ -102,14 +102,16 @@ void exposure_save_worker() {
   while (!stop_workers) {
     if (image_data_queue.try_pop(img)) {
       std::cout << "image_data_queue size: " << image_data_queue.size() << std::endl;
-      for (size_t cam_id = 0; cam_id < NUM_CAMS; ++cam_id) {
-        cam_data[cam_id] << img->t_ns << "," << img->t_ns << file_extension
-                         << std::endl;
 
-        exposure_data[cam_id] << img->t_ns << ","
-                              << int64_t(img->img_data[cam_id].exposure * 1e9)
-                              << std::endl;
-      }
+      cam_data[0] << img->t_ns << "," << img->t_ns << file_extension
+                       << std::endl;
+
+      exposure_data[0] << img->t_ns << ","
+                            << int64_t(img->img_data[0].exposure * 1e9)
+                            << std::endl;
+      std::cout << "#### exposure | " << img->t_ns << ","
+                                    << int64_t(img->img_data[0].exposure * 1e9)
+                                      << std::endl;
     } else {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -244,9 +246,7 @@ void startRecording(const std::string &dir_path) {
     basalt::fs::create_directory(dataset_dir + "mav0/imu0/");
 
     cam_data[0].open(dataset_dir + "mav0/cam0/data.csv");
-    cam_data[1].open(dataset_dir + "mav0/cam1/data.csv");
     exposure_data[0].open(dataset_dir + "mav0/cam0/exposure.csv");
-    exposure_data[1].open(dataset_dir + "mav0/cam1/exposure.csv");
     imu0_data.open(dataset_dir + "mav0/imu0/data.csv");
 
     if (!manual_exposure) {
@@ -257,9 +257,7 @@ void startRecording(const std::string &dir_path) {
     }
 
     cam_data[0] << "#timestamp [ns], filename\n";
-    //cam_data[1] << "#timestamp [ns], filename\n";
     exposure_data[0] << "#timestamp [ns], exposure time[ns]\n";
-    //exposure_data[1] << "#timestamp [ns], exposure time[ns]\n";
     imu0_data << "#timestamp [ns],w_RS_S_x [rad s^-1],w_RS_S_y [rad "
                  "s^-1],w_RS_S_z [rad s^-1],a_RS_S_x [m s^-2],a_RS_S_y "
                  "[m s^-2],a_RS_S_z [m s^-2]\n";
@@ -294,9 +292,7 @@ void stopRecording() {
 
       recording = false;
       cam_data[0].close();
-      //cam_data[1].close();
       exposure_data[0].close();
-      //exposure_data[1].close();
       imu0_data.close();
       if (!manual_exposure) {
         pose_data.close();
