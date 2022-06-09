@@ -49,8 +49,8 @@ RsD435iDevice::RsD435iDevice(bool manual_exposure, int skip_frames,
 
   config.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
   config.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-  config.enable_stream(RS2_STREAM_FISHEYE, 1, RS2_FORMAT_Y8);
-  config.enable_stream(RS2_STREAM_FISHEYE, 2, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 1, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 2, RS2_FORMAT_Y8);
   if (!manual_exposure) {
     config.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
   }
@@ -76,11 +76,14 @@ RsD435iDevice::RsD435iDevice(bool manual_exposure, int skip_frames,
   std::cout << "Device " << device.get_info(RS2_CAMERA_INFO_NAME)
             << " connected" << std::endl;
   sensor = device.query_sensors()[0];
-
-  if (manual_exposure) {
-    std::cout << "Enabling manual exposure control" << std::endl;
+  if (sensor.supports(rs2_option::RS2_OPTION_EMITTER_ENABLED)){
+    sensor.set_option(rs2_option::RS2_OPTION_EMITTER_ENABLED, 0);
+  }
+  if (sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
     sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
     sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
+  } else {
+    std::cout << "Auto Exposure not supported!" << std::endl;
   }
 }
 
@@ -259,8 +262,8 @@ std::shared_ptr<basalt::Calibration<double>> RsD435iDevice::exportCalibration() 
 
   auto accel_stream = profile.get_stream(RS2_STREAM_ACCEL);
   auto gyro_stream = profile.get_stream(RS2_STREAM_GYRO);
-  auto cam0_stream = profile.get_stream(RS2_STREAM_FISHEYE, 1);
-  auto cam1_stream = profile.get_stream(RS2_STREAM_FISHEYE, 2);
+  auto cam0_stream = profile.get_stream(RS2_STREAM_INFRARED, 1);
+  auto cam1_stream = profile.get_stream(RS2_STREAM_INFRARED, 2);
 
   // get gyro extrinsics
   if (auto gyro = gyro_stream.as<rs2::motion_stream_profile>()) {
