@@ -99,7 +99,7 @@ for iter in range(7):
     print_error()
 
 pcalib_fname = os.path.join(dataset_path, 'mav0/cam0/', "pcalib.txt")
-np.savetxt(pcalib_fname, inv_resp[:-1], fmt="%.13f")
+np.savetxt(pcalib_fname, inv_resp[:-1], delimiter=" ", fmt="%.13f")
 fig, (ax1, ax2) = plt.subplots(1, 2)
 ax1.plot(inv_resp[:-1])
 ax1.set(xlabel='Image Intensity', ylabel='Irradiance Value')
