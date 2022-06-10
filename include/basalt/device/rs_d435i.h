@@ -111,6 +111,7 @@ class RsD435iDevice {
   rs2::config config;
   rs2::pipeline pipe;
   rs2::sensor sensor;
+  double cur_exposure_time;
 
   rs2::pipeline_profile profile;
 };

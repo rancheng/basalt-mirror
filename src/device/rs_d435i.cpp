@@ -85,6 +85,7 @@ RsD435iDevice::RsD435iDevice(bool manual_exposure, int skip_frames,
   } else {
     std::cout << "Auto Exposure not supported!" << std::endl;
   }
+  cur_exposure_time = exposure_value * 1e-3;
 }
 
 void RsD435iDevice::start() {
@@ -117,8 +118,8 @@ void RsD435iDevice::start() {
 
           while (!gyro_data_queue.empty() && gyro_data_queue.front().timestamp <
                                                  prev_accel_data->timestamp) {
-            std::cout << "Skipping gyro data. Timestamp before the first accel "
-                         "measurement.";
+            // std::cout << "Skipping gyro data. Timestamp before the first accel "
+            //              "measurement.";
             gyro_data_queue.pop_front();
           }
 
@@ -191,8 +192,14 @@ void RsD435iDevice::start() {
 
         data->t_ns = t_ns;
 
-        data->img_data[i].exposure =
-            vf.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE) * 1e-6;
+        if(vf.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)){
+          data->img_data[i].exposure =
+              vf.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE) * 1e-6;
+        }
+        else{
+          // std::cout << "This Backend donesn't support get exposure time " << std::endl;
+          data->img_data[i].exposure = cur_exposure_time;
+        }
 
         data->img_data[i].img.reset(new basalt::ManagedImage<uint16_t>(
             vf.get_width(), vf.get_height()));
@@ -243,7 +250,7 @@ void RsD435iDevice::stop() {
 
 bool RsD435iDevice::setExposure(double exposure) {
   if (!manual_exposure) return false;
-
+  cur_exposure_time = exposure * 1e-3;
   sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure * 1000);
   return true;
 }

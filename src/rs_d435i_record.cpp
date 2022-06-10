@@ -57,8 +57,12 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <basalt/device/rs_d435i.h>
 #include <basalt/serialization/headers_serialization.h>
 #include <basalt/utils/filesystem.h>
+#include <basalt/utils/exposure_times.h>
 #include <CLI/CLI.hpp>
 #include <cereal/archives/json.hpp>
+
+#define REALSENSE_ROS_VERSION_STR (VAR_ARG_STRING(REALSENSE_ROS_MAJOR_VERSION.REALSENSE_ROS_MINOR_VERSION.REALSENSE_ROS_PATCH_VERSION))
+
 
 constexpr int UI_WIDTH = 200;
 
@@ -77,6 +81,7 @@ tbb::concurrent_bounded_queue<basalt::RsPoseData> pose_data_queue;
 
 std::atomic<bool> stop_workers;
 std::atomic<bool> recording;
+int time_idx = 0;
 
 std::string dataset_dir;
 
@@ -317,7 +322,31 @@ void toggleRecording(const std::string &dir_path) {
   }
 }
 
+std::string api_version_to_string(int version)
+{
+	std::ostringstream ss;
+	if (version / 10000 == 0)
+		ss << version;
+	else
+		ss << (version / 10000) << "." << (version % 10000) / 100 << "." << (version % 100);
+	return ss.str();
+}
+
+
 int main(int argc, char *argv[]) {
+  rs2_error* e = nullptr;
+	std::string running_librealsense_version(api_version_to_string(rs2_get_api_version(&e)));
+	std::cout << "RealSense ROS v" << REALSENSE_ROS_VERSION_STR << std::endl;
+	std::cout << "Built with LibRealSense v" << RS2_API_VERSION_STR << std::endl;
+	std::cout << "Running with LibRealSense v" << running_librealsense_version << std::endl; 
+	if (RS2_API_VERSION_STR != running_librealsense_version)
+	{
+		std::cout << "***************************************************" << std::endl;
+		std::cout << "** running with a different librealsense version **" << std::endl;
+		std::cout << "** than the one the wrapper was compiled with!   **" << std::endl;
+		std::cout << "***************************************************" << std::endl;
+	}
+
   CLI::App app{"Record RealSense D435i Data"};
 
   std::string dataset_path;
@@ -456,6 +485,16 @@ int main(int argc, char *argv[]) {
                       pangolin::Colour::Blue(), "accel z");
 
     while (!pangolin::ShouldQuit()) {
+
+      if (manual_exposure && recording){
+        exposure = exposure_times[time_idx];
+        time_idx++;
+      }
+
+      if (manual_exposure && (exposure.GuiChanged() || recording)) {
+        D435i_device->setExposure(exposure);
+      }
+
       {
         pangolin::GlPixFormat fmt;
         fmt.glformat = GL_LUMINANCE;
@@ -474,16 +513,17 @@ int main(int argc, char *argv[]) {
           }
       }
 
-      if (manual_exposure && exposure.GuiChanged()) {
-        D435i_device->setExposure(exposure);
-      }
-
       if (webp_quality.GuiChanged()) {
         D435i_device->setWebpQuality(webp_quality);
       }
 
       if (skip_frames.GuiChanged()) {
         D435i_device->setSkipFrames(skip_frames);
+      }
+
+      if(recording && time_idx >= (int)exposure_times.size()){
+        toggleRecording(dataset_path);
+        time_idx = 0;
       }
 
       pangolin::FinishFrame();
