@@ -444,6 +444,9 @@ if(realsense2_FOUND)
   # D435i
   add_executable(basalt_rs_d435i_record src/rs_d435i_record.cpp src/device/rs_d435i.cpp)
   target_link_libraries(basalt_rs_d435i_record basalt realsense2::realsense2 pangolin basalt::cli11)
+  # Saving to TUM Format
+  add_executable(basalt_rs_d435i_record_tum src/rs_d435i_record_tum.cpp src/device/rs_d435i.cpp)
+  target_link_libraries(basalt_rs_d435i_record_tum basalt realsense2::realsense2 pangolin basalt::cli11)
 
   add_executable(basalt_rs_d435i_vio src/rs_d435i_vio.cpp src/device/rs_d435i.cpp)
   target_link_libraries(basalt_rs_d435i_vio basalt realsense2::realsense2 pangolin basalt::cli11)

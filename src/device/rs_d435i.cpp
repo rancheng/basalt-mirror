@@ -49,8 +49,8 @@ RsD435iDevice::RsD435iDevice(bool manual_exposure, int skip_frames,
 
   config.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
   config.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-  config.enable_stream(RS2_STREAM_INFRARED, 1, RS2_FORMAT_Y8);
-  config.enable_stream(RS2_STREAM_INFRARED, 2, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 2, 640, 480, RS2_FORMAT_Y8);
   if (!manual_exposure) {
     config.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
   }
@@ -70,22 +70,8 @@ RsD435iDevice::RsD435iDevice(bool manual_exposure, int skip_frames,
     }
   }
 
-  auto device = context.query_devices()[0];
-
-
-  std::cout << "Device " << device.get_info(RS2_CAMERA_INFO_NAME)
-            << " connected" << std::endl;
-  sensor = device.query_sensors()[0];
-  if (sensor.supports(rs2_option::RS2_OPTION_EMITTER_ENABLED)){
-    sensor.set_option(rs2_option::RS2_OPTION_EMITTER_ENABLED, 0);
-  }
-  if (sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
-    sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
-    sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure_value * 1000);
-  } else {
-    std::cout << "Auto Exposure not supported!" << std::endl;
-  }
   cur_exposure_time = exposure_value * 1e-3;
+  exposure_change_flag = false;
 }
 
 void RsD435iDevice::start() {
@@ -150,6 +136,8 @@ void RsD435iDevice::start() {
         }
       }
     } else if (auto fs = frame.as<rs2::frameset>()) {
+      std::lock_guard<std::mutex> lck(exposure_change_mutex);
+      if(!exposure_change_flag) return;
       BASALT_ASSERT(fs.size() == NUM_CAMS);
 
       std::vector<rs2::video_frame> vfs;
@@ -197,7 +185,6 @@ void RsD435iDevice::start() {
               vf.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE) * 1e-6;
         }
         else{
-          // std::cout << "This Backend donesn't support get exposure time " << std::endl;
           data->img_data[i].exposure = cur_exposure_time;
         }
 
@@ -221,7 +208,12 @@ void RsD435iDevice::start() {
       }
 
       last_img_data = data;
-      if (image_data_queue) image_data_queue->push(data);
+      if (image_data_queue) {
+        image_data_queue->push(data);
+        std::cout << "Saving exposure time " << data->img_data[0].exposure * 1e3 << std::endl;
+        exposure_change_flag = false;
+
+      }
 
     } else if (auto pf = frame.as<rs2::pose_frame>()) {
       auto data = pf.get_pose_data();
@@ -241,6 +233,40 @@ void RsD435iDevice::start() {
   };
 
   profile = pipe.start(config, callback);
+
+  rs2::device device = profile.get_device();
+
+  // // Load json 
+  // std::string _json_file_path = "/home/mario/realsensestereo.json";
+  // if (device.is<rs2::serializable_device>())
+  // {
+  //     std::stringstream ss;
+  //     std::ifstream in(_json_file_path);
+  //     if (in.is_open())
+  //     {
+  //         ss << in.rdbuf();
+  //         std::string json_file_content = ss.str();
+  //         auto adv = device.as<rs2::serializable_device>();
+  //         adv.load_json(json_file_content);
+  //         std::cout << "JSON file is loaded! (" << _json_file_path << ")" << std::endl;
+  //     }
+  // }
+  // else
+  //     std::cout << "Device does not support advanced settings!" <<std::endl;
+
+
+  std::cout << "Device " << device.get_info(RS2_CAMERA_INFO_NAME)
+            << " connected" << std::endl;
+  sensor = device.query_sensors()[0];
+  if (sensor.supports(rs2_option::RS2_OPTION_EMITTER_ENABLED)){
+    sensor.set_option(rs2_option::RS2_OPTION_EMITTER_ENABLED, 0);
+  }
+  if (sensor.supports(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE)) {
+    sensor.set_option(rs2_option::RS2_OPTION_ENABLE_AUTO_EXPOSURE, 0);
+    sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, cur_exposure_time*1e6);
+  } else {
+    std::cout << "Auto Exposure not supported!" << std::endl;
+  }
 }
 
 void RsD435iDevice::stop() {
@@ -250,8 +276,11 @@ void RsD435iDevice::stop() {
 
 bool RsD435iDevice::setExposure(double exposure) {
   if (!manual_exposure) return false;
-  cur_exposure_time = exposure * 1e-3;
+  std::lock_guard<std::mutex> lck(exposure_change_mutex);
+  exposure_change_flag = true;
   sensor.set_option(rs2_option::RS2_OPTION_EXPOSURE, exposure * 1000);
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  cur_exposure_time = exposure * 1e-3;
   return true;
 }
 

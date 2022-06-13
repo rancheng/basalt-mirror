@@ -44,6 +44,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <thread>
 
 #include <librealsense2/rs.hpp>
+#include <librealsense2/rs_advanced_mode.hpp>
 
 #include <pangolin/image/typed_image.h>
 #include <pangolin/pangolin.h>
@@ -112,6 +113,8 @@ class RsD435iDevice {
   rs2::pipeline pipe;
   rs2::sensor sensor;
   double cur_exposure_time;
+  bool exposure_change_flag;
+  std::mutex exposure_change_mutex;
 
   rs2::pipeline_profile profile;
 };
