@@ -293,7 +293,7 @@ void VignetteEstimator::save_vign_png(const std::string &path) {
       for (size_t y = 0; y < vign_img.h; y++) {
         int64_t loc = (Eigen::Vector2d(x, y) - oc).norm() * 1e9;
         double val = vign_param[k].evaluate(loc)[0];
-        if (val < 0.5) continue;
+        // if (val < 0.5) continue;
         uint16_t val_int =
             val >= 1.0 ? std::numeric_limits<uint16_t>::max()
                        : uint16_t(val * std::numeric_limits<uint16_t>::max());
@@ -306,7 +306,7 @@ void VignetteEstimator::save_vign_png(const std::string &path) {
     //                        path + "/vingette_" + std::to_string(k) + ".png");
 
     cv::Mat img(vign_img.h, vign_img.w, CV_16U, vign_img.ptr);
-    cv::imwrite(path + "/vingette_" + std::to_string(k) + ".png", img);
+    cv::imwrite(path + "/vignette_" + std::to_string(k) + ".png", img);
   }
 }
 }  // namespace basalt

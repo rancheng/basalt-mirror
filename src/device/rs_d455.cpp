@@ -49,8 +49,8 @@ RsD455Device::RsD455Device(bool manual_exposure, int skip_frames,
 
   config.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);
   config.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-  config.enable_stream(RS2_STREAM_INFRARED, 1, RS2_FORMAT_Y8);
-  config.enable_stream(RS2_STREAM_INFRARED, 2, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 1, 640, 480, RS2_FORMAT_Y8);
+  config.enable_stream(RS2_STREAM_INFRARED, 2, 640, 480, RS2_FORMAT_Y8);
   if (!manual_exposure) {
     config.enable_stream(RS2_STREAM_POSE, RS2_FORMAT_6DOF);
   }
