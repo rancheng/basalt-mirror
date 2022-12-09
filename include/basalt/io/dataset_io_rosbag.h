@@ -54,6 +54,11 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <basalt/utils/filesystem.h>
 
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/highgui/highgui.hpp>
+
 namespace basalt {
 
 class RosbagVioDataset : public VioDataset {
@@ -143,7 +148,37 @@ class RosbagVioDataset : public VioDataset {
 
         } else if (img_msg->encoding == "mono16") {
           std::memcpy(id.img->ptr, img_msg->data.data(), img_msg->data.size());
-        } else {
+        } else if (img_msg->encoding == "rgb8") {
+          cv_bridge::CvImagePtr cv_ptr;
+          cv_ptr = cv_bridge::toCvCopy(img_msg);
+          cv::Mat img_gray;
+          cvtColor(cv_ptr->image, img_gray, CV_RGB2GRAY);
+          sensor_msgs::ImagePtr img_gray_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", img_gray).toImageMsg();
+          const uint8_t *data_in = img_gray_msg->data.data();
+          uint16_t *data_out = id.img->ptr;
+
+          for (size_t i = 0; i < img_gray_msg->data.size(); i++) {
+            int val = data_in[i];
+            val = val << 8;
+            data_out[i] = val;
+          }
+        } 
+        // else if (img_msg->encoding == "8UC1") {
+        //   cv_bridge::CvImagePtr cv_ptr;
+        //   cv_ptr = cv_bridge::toCvCopy(img_msg);
+        //   cv::Mat img_gray;
+        //   cvtColor(cv_ptr->image, img_gray, CV_RGB2GRAY);
+        //   sensor_msgs::ImagePtr img_gray_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", cv_ptr->image).toImageMsg();
+        //   const uint8_t *data_in = img_gray_msg->data.data();
+        //   uint16_t *data_out = id.img->ptr;
+
+        //   for (size_t i = 0; i < img_gray_msg->data.size(); i++) {
+        //     int val = data_in[i];
+        //     val = val << 8;
+        //     data_out[i] = val;
+        //   }
+        // } 
+        else{
           std::cerr << "Encoding " << img_msg->encoding << " is not supported."
                     << std::endl;
           std::abort();

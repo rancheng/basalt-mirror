@@ -274,6 +274,8 @@ set_property(TARGET basalt::opencv PROPERTY INTERFACE_LINK_LIBRARIES ${OpenCV_LI
 find_package(fmt REQUIRED)
 message(STATUS "Found {fmt} ${fmt_VERSION} in: ${fmt_DIR}")
 
+find_package(cv_bridge REQUIRED)
+
 add_subdirectory(thirdparty)
 
 # custom scoped cli11 target
@@ -380,7 +382,7 @@ target_sources(basalt
 
 target_link_libraries(basalt
   PUBLIC ${STD_CXX_FS} basalt::opencv basalt::basalt-headers TBB::tbb
-  PRIVATE basalt::magic_enum rosbag apriltag opengv nlohmann::json fmt::fmt)
+  PRIVATE basalt::magic_enum rosbag apriltag opengv nlohmann::json fmt::fmt cv_bridge)
 target_include_directories(basalt PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(basalt PUBLIC ${BASALT_COMPILE_DEFINITIONS})
 #target_compile_definitions(basalt PUBLIC BASALT_DISABLE_ASSERTS)
